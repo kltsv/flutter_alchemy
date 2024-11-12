@@ -28,7 +28,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   static const _paddings = 12.0;
   static const _itemsSize = 100.0;
-  static const _color = Colors.blue;
+  static final _color = Colors.blue.withAlpha(50);
 
   final List<String> _items = [
     ..._initialItems,
@@ -117,15 +117,75 @@ class DragDropItem<T extends Object> extends StatelessWidget {
       ),
       child: child,
     );
+    final pulseContainer =
+        PulseAnimation(size: size, color: color, child: child);
     return Center(
       child: Draggable<T>(
         data: data,
         childWhenDragging: const SizedBox.shrink(),
-        feedback: Material(color: Colors.transparent, child: itemContainer),
+        feedback: Material(
+          color: Colors.transparent,
+          child: pulseContainer,
+        ),
         child: DragTarget<T>(
-          builder: (context, accepted, rejected) => itemContainer,
+          builder: (context, accepted, rejected) =>
+              accepted.isEmpty ? itemContainer : pulseContainer,
           onAcceptWithDetails: (details) => onTargetReached?.call(details.data),
         ),
+      ),
+    );
+  }
+}
+
+class PulseAnimation extends StatefulWidget {
+  final double? size;
+  final Color? color;
+  final Widget? child;
+
+  const PulseAnimation({
+    super.key,
+    this.size,
+    this.color,
+    this.child,
+  });
+
+  @override
+  State<PulseAnimation> createState() => _PulseAnimationState();
+}
+
+class _PulseAnimationState extends State<PulseAnimation>
+    with TickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 5 * 150),
+      vsync: this,
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: Tween<double>(begin: 1.0, end: 1.2).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      ),
+      child: Container(
+        width: widget.size,
+        height: widget.size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: widget.color,
+        ),
+        child: Center(child: widget.child),
       ),
     );
   }
