@@ -1,4 +1,4 @@
-# flutter_alchemy
+# Flutter Alchemy
 
 An AI powered cross-platform Alchemy Game written in Flutter
 
@@ -7,7 +7,7 @@ An AI powered cross-platform Alchemy Game written in Flutter
 ### Prepare you Gemini API key
 
 1. Go to https://aistudio.google.com
-2. Sign In with you Google Account
+2. Sign In with your Google Account
 3. Press "Get API key" or go to https://aistudio.google.com/apikey
 4. Press "Create API key" and wait for it to be generated
 
