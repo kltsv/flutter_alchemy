@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
+
+const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+const separator = ',';
 
 const _initialItems = ['вода', 'огонь', 'воздух', 'земля'];
 
@@ -11,9 +15,13 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       title: 'Flutter Alchemy',
-      home: HomePage(),
+      home: apiKey.isNotEmpty
+          ? const HomePage()
+          : const Scaffold(
+              body: Center(child: Text('API key was not provided')),
+            ),
     );
   }
 }
@@ -216,3 +224,21 @@ class _PulseAnimationState extends State<PulseAnimation>
     );
   }
 }
+
+final _ai = GenerativeModel(
+  model: 'gemini-1.5-flash-latest',
+  apiKey: apiKey,
+);
+
+String _prompt(String origin, String target, List<String> exclude) =>
+    'We are playing the Fun Alchemy Game. There two items, '
+    'and as a result of combining these two items appears some new item, '
+    'that can be combined in the next steps with other items. '
+    'The new item must be in some way more complex then two original items. '
+    'The item MUST be different from the original two items. '
+    'You MUST answer in Russian. '
+    'You MUST answer only with a single noun. '
+    'Do not repeat original items. '
+    'Do not answer with words: {${exclude.join(',')}}. '
+    'Items to combine: $origin + $target. '
+    'Your answer is: ';
