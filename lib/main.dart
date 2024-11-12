@@ -38,13 +38,15 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    int crossAxisCount =
+        (MediaQuery.of(context).size.width / _itemsSize).floor();
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.all(_paddings),
         child: GridView.builder(
           reverse: true,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
             mainAxisSpacing: _paddings,
             crossAxisSpacing: _paddings,
           ),
