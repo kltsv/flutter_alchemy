@@ -1,4 +1,9 @@
+// ignore_for_file: avoid_print
 import 'package:flutter/material.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
+
+const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+const separator = ',';
 
 const _initialItems = ['вода', 'огонь', 'воздух', 'земля'];
 
@@ -11,9 +16,13 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       title: 'Flutter Alchemy',
-      home: HomePage(),
+      home: apiKey.isNotEmpty
+          ? const HomePage()
+          : const Scaffold(
+              body: Center(child: Text('API key was not provided')),
+            ),
     );
   }
 }
@@ -95,17 +104,47 @@ class _HomePageState extends State<HomePage> {
 
     // Start loading animation by adding special item to the list
     setState(() => _items.add(null));
-    // TODO: calculate new item
-    await Future.delayed(const Duration(seconds: 1));
+
+    // Check if cached value for this pair exists
+    final combination = ([origin, target]..sort()).join('+');
+    final existingCombination = _combinations[combination];
+
+    late final String value;
+
+    if (existingCombination == null) {
+      // No previous generation for the pair
+      print('Generating...');
+      final exclude = [
+        ..._initialItems,
+        ..._combinations.values,
+      ];
+      try {
+        final prompt = _prompt(origin, target, exclude);
+        final content = [Content.text(prompt)];
+        final response = await _ai.generateContent(content);
+        value = response.text!.trim().toLowerCase();
+        print('Answer: $value');
+      } catch (e) {
+        setState(() {
+          // Remove loading item when exception appears
+          _items.removeLast();
+          print('Exception: $e');
+        });
+        return;
+      }
+    } else {
+      // The previous generation exists for the pair, use from cache
+      value = existingCombination;
+    }
+    await Future.delayed(const Duration(milliseconds: 1000));
 
     // Save the result of the current pair to cache
-    final combination = ([origin, target]..sort()).join('+');
-    _combinations[combination] = combination; // TODO: cache new item
+    _combinations[combination] = value;
 
     setState(() {
       // Remove loading item from the list before adding an actual one
       _items.removeLast();
-      _items.add(combination);
+      _items.add(value);
     });
   }
 }
@@ -216,3 +255,21 @@ class _PulseAnimationState extends State<PulseAnimation>
     );
   }
 }
+
+final _ai = GenerativeModel(
+  model: 'gemini-1.5-flash-latest',
+  apiKey: apiKey,
+);
+
+String _prompt(String origin, String target, List<String> exclude) =>
+    'We are playing the Fun Alchemy Game. There two items, '
+    'and as a result of combining these two items appears some new item, '
+    'that can be combined in the next steps with other items. '
+    'The new item must be in some way more complex then two original items. '
+    'The item MUST be different from the original two items. '
+    'You MUST answer in Russian. '
+    'You MUST answer only with a single noun. '
+    'Do not repeat original items. '
+    'Do not answer with words: {${exclude.join(',')}}. '
+    'Items to combine: $origin + $target. '
+    'Your answer is: ';
