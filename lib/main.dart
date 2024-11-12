@@ -29,12 +29,15 @@ class _HomePageState extends State<HomePage> {
   static const _paddings = 12.0;
   static const _itemsSize = 100.0;
   static final _color = Colors.blue.withAlpha(50);
+  static const _loadingColor = Colors.lightBlueAccent;
 
-  final List<String> _items = [
+  final List<String?> _items = [
     ..._initialItems,
   ];
 
   final _combinations = <String, String>{};
+
+  bool get _isLoading => _items.contains(null);
 
   @override
   Widget build(BuildContext context) {
@@ -53,40 +56,57 @@ class _HomePageState extends State<HomePage> {
           itemCount: _items.length,
           itemBuilder: (context, index) {
             final item = _items[index];
-            return DragDropItem(
-              data: item,
-              size: _itemsSize,
-              color: _color,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(_paddings / 2),
-                  child: FittedBox(
-                    child: Text(
-                      item,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16),
+            if (item != null) {
+              return DragDropItem(
+                data: item,
+                size: _itemsSize,
+                color: _color,
+                locked: _isLoading,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(_paddings / 2),
+                    child: FittedBox(
+                      child: Text(
+                        item,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 16),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              onTargetReached: (origin) => _combine(origin, item),
-            );
+                onTargetReached: (origin) => _combine(origin, item),
+              );
+            } else {
+              return const Center(
+                child: PulseAnimation(
+                  size: _itemsSize / 2,
+                  color: _loadingColor,
+                ),
+              );
+            }
           },
         ),
       ),
     );
   }
 
-  void _combine(String origin, String target) {
+  Future<void> _combine(String origin, String target) async {
     print('from: $origin, to: $target');
 
+    // Start loading animation by adding special item to the list
+    setState(() => _items.add(null));
     // TODO: calculate new item
+    await Future.delayed(const Duration(seconds: 1));
 
     // Save the result of the current pair to cache
     final combination = ([origin, target]..sort()).join('+');
     _combinations[combination] = combination; // TODO: cache new item
 
-    setState(() => _items.add(combination));
+    setState(() {
+      // Remove loading item from the list before adding an actual one
+      _items.removeLast();
+      _items.add(combination);
+    });
   }
 }
 
@@ -94,6 +114,7 @@ class DragDropItem<T extends Object> extends StatelessWidget {
   final T data;
   final double size;
   final Color color;
+  final bool locked;
   final ValueChanged<T>? onTargetReached;
   final Widget? child;
 
@@ -102,6 +123,7 @@ class DragDropItem<T extends Object> extends StatelessWidget {
     required this.data,
     this.size = 50,
     this.color = Colors.grey,
+    this.locked = false,
     this.onTargetReached,
     this.child,
   });
@@ -120,17 +142,21 @@ class DragDropItem<T extends Object> extends StatelessWidget {
     final pulseContainer =
         PulseAnimation(size: size, color: color, child: child);
     return Center(
-      child: Draggable<T>(
-        data: data,
-        childWhenDragging: const SizedBox.shrink(),
-        feedback: Material(
-          color: Colors.transparent,
-          child: pulseContainer,
-        ),
-        child: DragTarget<T>(
-          builder: (context, accepted, rejected) =>
-              accepted.isEmpty ? itemContainer : pulseContainer,
-          onAcceptWithDetails: (details) => onTargetReached?.call(details.data),
+      child: IgnorePointer(
+        ignoring: locked,
+        child: Draggable<T>(
+          data: data,
+          childWhenDragging: const SizedBox.shrink(),
+          feedback: Material(
+            color: Colors.transparent,
+            child: pulseContainer,
+          ),
+          child: DragTarget<T>(
+            builder: (context, accepted, rejected) =>
+                accepted.isEmpty ? itemContainer : pulseContainer,
+            onAcceptWithDetails: (details) =>
+                onTargetReached?.call(details.data),
+          ),
         ),
       ),
     );
