@@ -1,11 +1,18 @@
 // ignore_for_file: avoid_print
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 const apiKey = String.fromEnvironment('GEMINI_API_KEY');
 const separator = ',';
 
-const _initialItems = ['вода', 'огонь', 'воздух', 'земля'];
+const _initialItems = [
+  Item(value: 'вода', level: 1, emoji: '💧'),
+  Item(value: 'огонь', level: 1, emoji: '🔥'),
+  Item(value: 'воздух', level: 1, emoji: '💨'),
+  Item(value: 'земля', level: 1, emoji: '🪨'),
+];
 
 void main() {
   runApp(const App());
@@ -37,16 +44,24 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   static const _paddings = 12.0;
   static const _itemsSize = 100.0;
-  static final _color = Colors.blue.withAlpha(50);
+  static final _initialColor = Colors.blue.withAlpha(50);
   static const _loadingColor = Colors.lightBlueAccent;
 
-  final List<String?> _items = [
+  final List<Item?> _items = [
     ..._initialItems,
   ];
 
-  final _combinations = <String, String>{};
+  final _combinations = <String, Item>{};
+
+  final _colors = <int, Color>{};
 
   bool get _isLoading => _items.contains(null);
+
+  @override
+  void initState() {
+    super.initState();
+    _colors[1] = _initialColor;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,17 +84,30 @@ class _HomePageState extends State<HomePage> {
               return DragDropItem(
                 data: item,
                 size: _itemsSize,
-                color: _color,
+                color: _colors[item.level]!,
                 locked: _isLoading,
                 child: Center(
                   child: Padding(
                     padding: const EdgeInsets.all(_paddings / 2),
-                    child: FittedBox(
-                      child: Text(
-                        item,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 16),
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (item.emoji != null)
+                          Text(
+                            item.emoji!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        FittedBox(
+                          child: Text(
+                            item.value,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -99,17 +127,19 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _combine(String origin, String target) async {
+  Future<void> _combine(Item origin, Item target) async {
     print('from: $origin, to: $target');
 
     // Start loading animation by adding special item to the list
     setState(() => _items.add(null));
 
     // Check if cached value for this pair exists
-    final combination = ([origin, target]..sort()).join('+');
+    final combination = ([origin.value, target.value]..sort()).join('+');
     final existingCombination = _combinations[combination];
 
     late final String value;
+    late final int level;
+    late final String? emoji;
 
     if (existingCombination == null) {
       // No previous generation for the pair
@@ -119,11 +149,15 @@ class _HomePageState extends State<HomePage> {
         ..._combinations.values,
       ];
       try {
-        final prompt = _prompt(origin, target, exclude);
+        final prompt =
+            _prompt(origin.value, target.value, exclude.map((e) => e.value));
         final content = [Content.text(prompt)];
         final response = await _ai.generateContent(content);
-        value = response.text!.trim().toLowerCase();
-        print('Answer: $value');
+        final rawValue = response.text!.trim().toLowerCase();
+        value = rawValue.split(separator).elementAt(0);
+        level = max(origin.level, target.level) + 1;
+        emoji = rawValue.split(separator).elementAt(1);
+        print('Answer: $value $emoji ($level)');
       } catch (e) {
         setState(() {
           // Remove loading item when exception appears
@@ -134,17 +168,30 @@ class _HomePageState extends State<HomePage> {
       }
     } else {
       // The previous generation exists for the pair, use from cache
-      value = existingCombination;
+      value = existingCombination.value;
+      level = existingCombination.level;
+      emoji = existingCombination.emoji;
     }
-    await Future.delayed(const Duration(milliseconds: 1000));
+
+    if (!_colors.containsKey(level)) {
+      final prevLevelColor = _colors[level - 1]!;
+      _colors[level] = Color.fromARGB(
+        min(prevLevelColor.alpha + 10, 255), // Deeper color with each level
+        prevLevelColor.red,
+        prevLevelColor.green,
+        prevLevelColor.blue,
+      );
+    }
+    final newItem = Item(value: value, level: level, emoji: emoji);
 
     // Save the result of the current pair to cache
-    _combinations[combination] = value;
+    _combinations[combination] = newItem;
 
+    await Future.delayed(const Duration(milliseconds: 1000));
     setState(() {
       // Remove loading item from the list before adding an actual one
       _items.removeLast();
-      _items.add(value);
+      _items.add(newItem);
     });
   }
 }
@@ -261,15 +308,29 @@ final _ai = GenerativeModel(
   apiKey: apiKey,
 );
 
-String _prompt(String origin, String target, List<String> exclude) =>
-    'We are playing the Fun Alchemy Game. There two items, '
-    'and as a result of combining these two items appears some new item, '
-    'that can be combined in the next steps with other items. '
+String _prompt(String origin, String target, Iterable<String> exclude) =>
+    'We are playing the Fun Alchemy Game. There are two items, '
+    'and as a result of combining these two items, some new item appears and '
+    'this new item can be combined in the next steps with other items. '
     'The new item must be in some way more complex then two original items. '
     'The item MUST be different from the original two items. '
     'You MUST answer in Russian. '
     'You MUST answer only with a single noun. '
     'Do not repeat original items. '
+    'After the word add the most relevant single emoji. '
+    'Separate a word and emoji with a `$separator` sign. '
     'Do not answer with words: {${exclude.join(',')}}. '
     'Items to combine: $origin + $target. '
     'Your answer is: ';
+
+class Item {
+  final String value;
+  final int level;
+  final String? emoji;
+
+  const Item({
+    required this.value,
+    required this.level,
+    this.emoji,
+  });
+}
