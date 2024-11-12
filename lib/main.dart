@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
@@ -103,17 +104,47 @@ class _HomePageState extends State<HomePage> {
 
     // Start loading animation by adding special item to the list
     setState(() => _items.add(null));
-    // TODO: calculate new item
-    await Future.delayed(const Duration(seconds: 1));
+
+    // Check if cached value for this pair exists
+    final combination = ([origin, target]..sort()).join('+');
+    final existingCombination = _combinations[combination];
+
+    late final String value;
+
+    if (existingCombination == null) {
+      // No previous generation for the pair
+      print('Generating...');
+      final exclude = [
+        ..._initialItems,
+        ..._combinations.values,
+      ];
+      try {
+        final prompt = _prompt(origin, target, exclude);
+        final content = [Content.text(prompt)];
+        final response = await _ai.generateContent(content);
+        value = response.text!.trim().toLowerCase();
+        print('Answer: $value');
+      } catch (e) {
+        setState(() {
+          // Remove loading item when exception appears
+          _items.removeLast();
+          print('Exception: $e');
+        });
+        return;
+      }
+    } else {
+      // The previous generation exists for the pair, use from cache
+      value = existingCombination;
+    }
+    await Future.delayed(const Duration(milliseconds: 1000));
 
     // Save the result of the current pair to cache
-    final combination = ([origin, target]..sort()).join('+');
-    _combinations[combination] = combination; // TODO: cache new item
+    _combinations[combination] = value;
 
     setState(() {
       // Remove loading item from the list before adding an actual one
       _items.removeLast();
-      _items.add(combination);
+      _items.add(value);
     });
   }
 }
