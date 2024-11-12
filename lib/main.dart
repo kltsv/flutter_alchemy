@@ -18,12 +18,23 @@ class App extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
   static const _paddings = 12.0;
   static const _itemsSize = 100.0;
   static const _color = Colors.blue;
 
-  const HomePage({super.key});
+  final List<String> _items = [
+    ..._initialItems,
+  ];
+
+  final _combinations = <String, String>{};
 
   @override
   Widget build(BuildContext context) {
@@ -37,22 +48,43 @@ class HomePage extends StatelessWidget {
             mainAxisSpacing: _paddings,
             crossAxisSpacing: _paddings,
           ),
-          itemCount: _initialItems.length,
+          itemCount: _items.length,
           itemBuilder: (context, index) {
-            final item = _initialItems[index];
+            final item = _items[index];
             return DragDropItem(
               data: item,
               size: _itemsSize,
               color: _color,
-              child: Center(child: Text(item)),
-              onTargetReached: (target) {
-                print('from: $item, to: $target');
-              },
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(_paddings / 2),
+                  child: FittedBox(
+                    child: Text(
+                      item,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ),
+              ),
+              onTargetReached: (origin) => _combine(origin, item),
             );
           },
         ),
       ),
     );
+  }
+
+  void _combine(String origin, String target) {
+    print('from: $origin, to: $target');
+
+    // TODO: calculate new item
+
+    // Save the result of the current pair to cache
+    final combination = ([origin, target]..sort()).join('+');
+    _combinations[combination] = combination; // TODO: cache new item
+
+    setState(() => _items.add(combination));
   }
 }
 
