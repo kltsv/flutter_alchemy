@@ -4,13 +4,13 @@ An AI powered cross-platform Alchemy Game written in Flutter
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+### Prepare you Gemini API key
 
-A few resources to get you started if this is your first Flutter project:
+1. Go to https://aistudio.google.com
+2. Sign In with you Google Account
+3. Press "Get API key" or go to https://aistudio.google.com/apikey
+4. Press "Create API key" and wait for it to be generated
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### Pass API key to the app
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+1. Use additional run arg: `--dart-define=GEMINI_API_KEY=[your_api_key_here]`
