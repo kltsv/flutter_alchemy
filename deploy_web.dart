@@ -4,8 +4,8 @@ import 'dart:io';
 void main() {
   _log('Building flutter web');
   final output = Process.runSync(
-    'fvm',
-    ['flutter', 'build', 'web'],
+    'flutter',
+    ['build', 'web'],
     runInShell: true,
   );
   _handleProcessResult(output);
