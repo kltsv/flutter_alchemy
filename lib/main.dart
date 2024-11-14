@@ -18,24 +18,83 @@ void main() {
   runApp(const App());
 }
 
-class App extends StatelessWidget {
+class App extends StatefulWidget {
   const App({super.key});
 
   @override
+  State<App> createState() => _AppState();
+}
+
+class _AppState extends State<App> {
+  late final TextEditingController _textController;
+  var _apiKey = apiKey.isNotEmpty ? apiKey : null;
+
+  @override
+  void initState() {
+    super.initState();
+    _textController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final key = _apiKey;
     return MaterialApp(
       title: 'Flutter Alchemy',
-      home: apiKey.isNotEmpty
-          ? const HomePage()
-          : const Scaffold(
-              body: Center(child: Text('API key was not provided')),
+      home: key != null
+          ? HomePage(apiKey: key)
+          : Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(4.0),
+                      child: Text('Enter your Google AIStudio API key.'),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.all(4.0),
+                      child: FittedBox(
+                        child: SelectableText(
+                          'Read instruction at: https://github.com/kltsv/flutter_alchemy',
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: TextField(
+                        controller: _textController,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        if (_textController.text.isNotEmpty) {
+                          setState(() => _apiKey = _textController.text);
+                        }
+                      },
+                      child: const Text('Apply'),
+                    ),
+                  ],
+                ),
+              ),
             ),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final String apiKey;
+
+  const HomePage({
+    super.key,
+    required this.apiKey,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -46,6 +105,8 @@ class _HomePageState extends State<HomePage> {
   static const _itemsSize = 100.0;
   static final _initialColor = Colors.blue.withAlpha(50);
   static const _loadingColor = Colors.lightBlueAccent;
+
+  late final _ai = _createAI(widget.apiKey);
 
   final List<Item?> _items = [
     ..._initialItems,
@@ -303,10 +364,10 @@ class _PulseAnimationState extends State<PulseAnimation>
   }
 }
 
-final _ai = GenerativeModel(
-  model: 'gemini-1.5-flash-latest',
-  apiKey: apiKey,
-);
+GenerativeModel _createAI(String apiKey) => GenerativeModel(
+      model: 'gemini-1.5-flash-latest',
+      apiKey: apiKey,
+    );
 
 String _prompt(String origin, String target, Iterable<String> exclude) =>
     'We are playing the Fun Alchemy Game. There are two items, '
