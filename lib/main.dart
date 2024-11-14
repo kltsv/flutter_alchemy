@@ -109,7 +109,7 @@ class _HomePageState extends State<HomePage> {
   late final _ai = _createAI(widget.apiKey);
 
   final List<Item?> _items = [
-    ..._initialItems,
+    null,
   ];
 
   final _combinations = <String, Item>{};
@@ -122,6 +122,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _colors[1] = _initialColor;
+    _createInitialItems();
   }
 
   @override
@@ -189,7 +190,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _combine(Item origin, Item target) async {
-    print('from: $origin, to: $target');
+    print('from: ${origin.value}, to: ${target.value}');
 
     // Start loading animation by adding special item to the list
     setState(() => _items.add(null));
@@ -223,8 +224,8 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           // Remove loading item when exception appears
           _items.removeLast();
-          print('Exception: $e');
         });
+        print('Exception: $e');
         return;
       }
     } else {
@@ -254,6 +255,29 @@ class _HomePageState extends State<HomePage> {
       _items.removeLast();
       _items.add(newItem);
     });
+  }
+
+  Future<void> _createInitialItems() async {
+    print('Generating initial items...');
+    try {
+      final prompt = _initialItemsPrompt();
+      final content = [Content.text(prompt)];
+      final response = await _ai.generateContent(content);
+      final rawValue = response.text!.trim().toLowerCase();
+      final initialWords = rawValue.split(separator);
+      print('Initial items are: [${initialWords.join(',')}]');
+      final initialItems = initialWords.map((i) => Item(value: i, level: 1));
+      setState(() {
+        _items.removeLast();
+        _items.addAll(initialItems);
+      });
+    } catch (e) {
+      setState(() {
+        _items.removeLast();
+        _items.addAll(_initialItems);
+      });
+      print('Exception: $e');
+    }
   }
 }
 
@@ -382,6 +406,13 @@ String _prompt(String origin, String target, Iterable<String> exclude) =>
     'Separate a word and emoji with a `$separator` sign. '
     'Do not answer with words: {${exclude.join(',')}}. '
     'Items to combine: $origin + $target. '
+    'Your answer is: ';
+
+String _initialItemsPrompt() =>
+    'Come up with FOUR random nouns, separated with a $separator sign. '
+    'These nouns must represent some actual item or material or physical thing. '
+    'You MUST answer only with FOUR NOUN WORDS, NOTHING ELSE, NO DOT AT THE END. '
+    'You MUST answer in Russian. '
     'Your answer is: ';
 
 class Item {
